@@ -1,0 +1,30 @@
+.login-bg{
+    background-color: var(--bgClr);
+    position: absolute;
+    inset: 0;
+  }
+  
+  .login-page{
+    background-color: var(--ClrLoginInside);
+    width: 30rem;
+    text-align: center;
+    padding-block: 2rem;
+    border-radius: 2rem;
+    margin-inline-start: 50%;
+    transform: translate(-50% );
+    margin-block-start: 20%;
+    border: 2px solid var(--ClrLogonBorder);
+  }
+  .login-signup-btn{
+    background-color: transparent;
+    color: blue;
+    text-decoration: underline;
+  }
+  
+  .login-signup-btn:hover{
+    background-color: transparent;
+  }
+  
+  .login-error{
+    color:red;
+  }  

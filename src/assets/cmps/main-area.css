@@ -1,0 +1,73 @@
+.chat-page{
+    background-color: var(--bgClr);
+    height: 100vh;
+    position: absolute;
+    inset: 0;
+}
+
+.windows{
+    height: 70%;
+    display: flex;
+    justify-content: center;
+}
+
+.header{
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.msg-area{
+    background-color: var(--ClrLoginInside);
+    margin: 2rem;
+    overflow: auto;
+    height:90%;
+    width: 60%;
+    box-sizing: border-box;
+}
+
+.rooms-area{
+    background-color: var(--ClrLoginInside);
+    margin: 1rem;
+    overflow: auto;
+    height:30%;
+    width: 180%;
+    box-sizing: border-box;
+}
+
+.users-area{
+    background-color: var(--ClrLoginInside);
+    margin: 1rem;
+    overflow: auto;
+    height:51%;
+    width: 180%;
+    box-sizing: border-box;
+}
+
+.sending-msg-area{
+position: absolute;
+left: 15%;
+right: 20%;
+font-size: 1.3rem;
+}
+
+.to{
+    border: 1px solid black;
+    min-width: 2.3rem;
+    min-height: 0.7rem;
+    display: inline-block;
+    padding: 0.3rem;
+    vertical-align: middle;
+    margin-inline-start: 0.5rem;
+    font-size: 1rem;
+}
+
+.sending-msg-area input{
+    margin-block-start: 1rem;
+    width: 80%;
+    text-align: start;
+    padding: 0.5rem;
+    padding-inline-start: 1rem;
+}
+
+
