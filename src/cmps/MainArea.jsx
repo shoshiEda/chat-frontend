@@ -1,15 +1,18 @@
 /* eslint-disable react/prop-types */
-import { logout ,getConnectedUsers} from '../services/user.service.js'
+import { logout ,getConnectedUsers , getloggedInUserById} from '../services/user.service.js'
+import { sendNewMsg , getConversationById } from '../services/conversation.service.js'
 import { useState , useEffect } from 'react';
 export default function MainArea({loggedInUser,setLoggedInUser}){
 
-    const [selectedRoom,setSelectedRoom] = useState({type:"room",name:"Main"})
+const [selectedRoom, setSelectedRoom] = useState({_id:"",name:"",type:""})
+
     const [connectedUsers,setConnectedUsers] = useState(null)
 
     const filteredUsers = connectedUsers? connectedUsers.filter(user => user !== loggedInUser.userName):null
 
     const [msg,setMsg] = useState("")
 
+    console.log(selectedRoom)
 
     
     useEffect(()=>{
@@ -20,9 +23,12 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         fetchUsers()
     },[])
     
-    function send(){
-        console.log(msg)
-    }
+    async function send(){
+        const status = await sendNewMsg(selectedRoom._id,loggedInUser.userName,msg)
+        if(status==='success') {
+            const user = await getloggedInUserById(loggedInUser._id)
+            setLoggedInUser(user)
+    }}
     
     async function logingOut(userId){
         try{
@@ -32,7 +38,16 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
             console.log('Error during logout:', err);     
           }
     }
-    console.log(loggedInUser)
+
+    async function loadSelectedRoom(conversationId) {
+        try{
+            console.log(conversationId)
+        const conversation = await getConversationById(conversationId)
+        if(conversation) setSelectedRoom(conversation)
+        }catch(err){
+            console.log('Error during logout:', err);     
+          }
+    }
     {!loggedInUser && <div>Loading...</div>}
     return(
         <section className="chat-page">
@@ -41,12 +56,16 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                 <button onClick={()=>logingOut(loggedInUser.userId)}>Log out</button>
             </div>
             <div className='windows'>
-                <div className='msg-area'></div>
+                <div className='msg-area'>
+                    {selectedRoom && selectedRoom.msgs && selectedRoom.msgs.length &&
+                    selectedRoom.msgs.map((msg,idx)=><li key={idx}> <p>{msg.username}:</p><p>{msg.msg}</p></li>)
+                    }
+                </div>
                 <div className='right-side'>
                     <label>Rooms</label>
                     <div className='rooms-area'>
                         {loggedInUser.conversations && loggedInUser.conversations.map(conversation=><li key={conversation._id} 
-                        onClick={()=>setSelectedRoom({type:"room",name:conversation.name})}
+                        onClick={()=>loadSelectedRoom(conversation._id)}
                         className={conversation.name===selectedRoom.name?"active" : ""}>{conversation.name}</li>)}
                     </div>
                     <label>Connected users</label>
@@ -58,7 +77,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                     </div>
             </div>
             <div className='sending-msg-area'>
-                to:<span className='to'>{selectedRoom.name}</span>
+                to:<span className='to'>{ selectedRoom.name}</span>
                 <br/>
                 <input type="text" onChange={(e)=>setMsg(e.target.value)}/>
                 <button onClick={send}>send</button>
