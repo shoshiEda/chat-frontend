@@ -24,6 +24,34 @@
     height:90%;
     width: 60%;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column; 
+    align-items: flex-start;
+}
+
+
+.msg-area li{
+    padding: 0.2rem 1rem;
+    border-radius: 1rem;
+    display: block;
+    width: fit-content;
+}
+.msg-area .me{
+    background-color: var(--ClrBtnHover);
+    align-self: flex-start;
+}
+
+.msg-area .others{
+    background-color: var(--bgClr);
+    align-self: flex-end;
+}
+
+.msg-area li p{
+    margin: 0.2rem;
+}
+
+.msg-area li:hover{
+    cursor: auto;
 }
 
 .rooms-area{

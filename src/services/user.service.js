@@ -12,8 +12,8 @@ export const login = async(username,password)=>{
         if(response.data.success){
             const token = response.data.token
             const decodedToken = jwt.jwtDecode(token)
-            localStorage.setItem('loggedInUser', JSON.stringify(decodedToken));
-            localStorage.setItem('token',token)
+            sessionStorage.setItem('loggedInUser', JSON.stringify(decodedToken));
+            sessionStorage.setItem('token',token)
             return {loggedInUser:decodedToken}
         }
     }catch(err){
@@ -31,8 +31,8 @@ export const signup = async(username,password)=>{
           if(response.data.success){
           const token = response.data.token
           const decodedToken = jwt.jwtDecode(token)
-          localStorage.setItem('loggedInUser', JSON.stringify(decodedToken));
-          localStorage.setItem('token',token)
+          sessionStorage.setItem('loggedInUser', JSON.stringify(decodedToken));
+          sessionStorage.setItem('token',token)
           return {loggedInUser:decodedToken}
           }
       }catch(err){
@@ -46,8 +46,8 @@ export const logout = async(userId)=>{
     try{
     const {data} = await axios.post(url + '/logout', { userId })
     if(data.status==='success'){
-        localStorage.removeItem('loggedInUser')
-        localStorage.removeItem('token')
+        sessionStorage.removeItem('loggedInUser')
+        sessionStorage.removeItem('token')
         return 'success'
     }
 }catch(err){
@@ -62,7 +62,18 @@ export const getConnectedUsers = async()=>{
             return data.users
         }
     }catch(err){
-        console.log('Error during logout:', err);     
+        console.log('Error during getting users:', err);     
+      }
+}
+
+export const getLoggedInUser = async(userId)=>{
+    try{
+        const {data} = await axios.get(url+`/${userId}`)
+        if(data.user){
+            return data.user
+        }
+    }catch(err){
+        console.log('Error during getting user:', err);     
       }
 }
 

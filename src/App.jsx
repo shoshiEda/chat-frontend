@@ -6,7 +6,7 @@ import './assets/main.css'
 
 function App() {
   
-  const [loggedInUser,setLoggedInUser] = useState((JSON.parse(localStorage.getItem('loggedInUser'))) || null)
+  const [loggedInUser,setLoggedInUser] = useState((JSON.parse(sessionStorage.getItem('loggedInUser'))) || null)
 
 
   return (
