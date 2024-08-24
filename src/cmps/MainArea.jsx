@@ -124,7 +124,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                     </div>
             </div>
             <div className='sending-msg-area'>
-                to:<span className='to'>{selectedRoom.name}</span>
+                to:<span className='to'>{ selectedRoom.name}</span>
                 <br/>
                 <input type="text" onChange={(e)=>setMsg(e.target.value)} value={msg}/>
                 <button onClick={send}>send</button>

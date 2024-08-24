@@ -78,6 +78,15 @@ export const getLoggedInUser = async(userId)=>{
 }
 
 
-
+export const getloggedInUserById =async(userId)=>{
+    try{
+        const {data} = await axios.get( `${url}/${userId}`)
+        if(data.user){
+            return data.user
+        }
+    }catch(err){
+        console.log('Error during geting user by id:', err);     
+      }
+}
 
 

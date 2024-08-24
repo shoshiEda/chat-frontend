@@ -39,4 +39,6 @@ export const createNewConversation = async({type,name,username},users=[])=>{
     }
 }
 
-export const joinToConversation = (user)=>{}
+export const joinToConversation = (user)=>{
+    console.log(user)
+}
