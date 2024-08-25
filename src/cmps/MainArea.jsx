@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { logout ,getConnectedUsers ,getLoggedInUser} from '../services/user.service.js'
-import { addNewMsg , getConversationById } from '../services/conversation.service.js'
+import { addNewMsg , getConversationById ,createNewConversation } from '../services/conversation.service.js'
 import { useState , useEffect, useRef} from 'react';
 import NewRoom from './NewRoom.jsx'
 export default function MainArea({loggedInUser,setLoggedInUser}){
@@ -8,20 +8,19 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     const [selectedRoom,setSelectedRoom] = useState({id:"",type:"room",name:"Main",msgs:[]})
     const [connectedUsers,setConnectedUsers] = useState(null)
     const [isOpenModal,setIsOpenModal] = useState(false)
-    const firstRender = useRef(true)
-
-    console.log(selectedRoom)
-
 
 
     const filteredUsers = connectedUsers? connectedUsers.filter(user => user !== loggedInUser.userName):null
 
     const [msg,setMsg] = useState("")
 
-    const chatEndRef = useRef(null);
+    const chatEndRef = useRef(null)
+    const isFirstRender = useRef(true);
+
+
 
     useEffect(() => {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [selectedRoom])
 
 
@@ -35,26 +34,26 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         loadConversation('Main')
     },[])
 
-    useEffect(()=>{
-        const fetchUser = async()=>{
-            const user = await getLoggedInUser(loggedInUser._id)
+    useEffect(() => {
+        if(isFirstRender.current){
+            isFirstRender.current=false
+        }else{
+            loadConversation(loggedInUser.conversations[loggedInUser.conversations.length-1].name)}
+    }, [loggedInUser])
+
+
+
+
+    async function updateUser(){
+            const user = await getLoggedInUser( loggedInUser.userId )
             setLoggedInUser(user)
+            sessionStorage.setItem('loggedInUser', JSON.stringify(user))
         }
-        if (firstRender.current) {
-            firstRender.current = false;
-        } else
-        if(!isOpenModal){
-         fetchUser()
-         loadConversation(loggedInUser.conversations[loggedInUser.conversations.length-1].name)
-        }
-    },[isOpenModal])
     
     async function send(){
         try{
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===selectedRoom.name)
-        console.log(selectedConversation)
         const {msgs} = await addNewMsg(selectedConversation.id,msg,loggedInUser.userName)
-        console.log(msgs)
         setSelectedRoom({...selectedRoom,msgs})
         setMsg("")
     }catch(err){
@@ -67,9 +66,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     async function loadConversation(conversationName) {
         try{
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===conversationName)
-        console.log(loggedInUser.conversations,selectedConversation)
-        const conversation = await getConversationById(selectedConversation.id)
-        console.log(conversation)
+        const conversation = selectedConversation._id? await getConversationById(selectedConversation.id) : selectedConversation      
         if(conversation)
         {
             setSelectedRoom({id: selectedConversation.id,type:conversation.type,name:conversationName,msgs:conversation.msgs || []})
@@ -111,14 +108,19 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                 <div className='right-side'>
                     <label>Rooms</label>
                     <div className='rooms-area'>
-                        {loggedInUser.conversations && loggedInUser.conversations.map(conversation=><li key={conversation._id} 
+                        {loggedInUser.conversations && loggedInUser.conversations.map(conversation=><li key={conversation.id} 
                         onClick={()=>loadConversation(conversation.name)}
                         className={conversation.name===selectedRoom.name?"active" : ""}>{conversation.name}</li>)}
+                        <div ref={chatEndRef}></div>
+
                     </div>
                     <label>Connected users</label>
                     <div className='users-area'>
                     {filteredUsers && filteredUsers.map(user=><li key={user} 
-                        onClick={()=>setSelectedRoom({type:"user",name:user})}
+                        onClick={async()=>{
+                            await createNewConversation({type:'private',name:`${loggedInUser.userName} - ${user}`,username:`${loggedInUser.userName}`},[user])
+                           updateUser() 
+                        }}
                         className={user===selectedRoom.name?"active" : ""}>{user}</li>)}
                         </div>
                     </div>
@@ -129,7 +131,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                 <input type="text" onChange={(e)=>setMsg(e.target.value)} value={msg}/>
                 <button onClick={send}>send</button>
             </div>
-            {isOpenModal && <NewRoom connectedUsers={connectedUsers} setIsOpenModal={setIsOpenModal} loggedInUser={loggedInUser}/>}
+            {isOpenModal && <NewRoom connectedUsers={connectedUsers} setIsOpenModal={setIsOpenModal} loggedInUser={loggedInUser} updateUser={updateUser}/>}
         </section>
     )
 }

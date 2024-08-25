@@ -28,10 +28,9 @@ export const getConversationById = async(conversationId)=>{
 export const createNewConversation = async({type,name,username},users=[])=>{
     try{
         const {data} = await axios.post(url,{type,name,username})
-        console.log(data.newConversation)
         if(users.length)
         {
-            users.map(user=>joinToConversation(user))
+            users.map(user=>joinToConversation(user,data.newConversation))
         }
         if(data.newConversation)  return data.newConversation
     }catch(err){
@@ -39,6 +38,10 @@ export const createNewConversation = async({type,name,username},users=[])=>{
     }
 }
 
-export const joinToConversation = (user)=>{
-    console.log(user)
+export const joinToConversation = (user,newConversation)=>{
+    try{
+        axios.post(url+`/user/${newConversation._id}/${user}`)
+    }catch(err){
+        console.log('Error during creating a new conversation:', err)
+    }
 }

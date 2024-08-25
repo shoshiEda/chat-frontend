@@ -31,7 +31,7 @@ export const signup = async(username,password)=>{
           if(response.data.success){
           const token = response.data.token
           const decodedToken = jwt.jwtDecode(token)
-          sessionStorage.setItem('loggedInUser', JSON.stringify(decodedToken));
+          sessionStorage.setItem('loggedInUser', JSON.stringify(decodedToken))
           sessionStorage.setItem('token',token)
           return {loggedInUser:decodedToken}
           }

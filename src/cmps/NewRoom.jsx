@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { createNewConversation } from '../services/conversation.service'
 
-export default function NewRoom({connectedUsers=[],setIsOpenModal,loggedInUser}){
+export default function NewRoom({connectedUsers=[],setIsOpenModal,loggedInUser,updateUser}){
 
     const [newRoom, setNewRoom] = useState({type:"public",name:"",username:loggedInUser.userName})
     const [newUsersInRoom,setNewUsersInRoom] = useState([])
@@ -21,6 +21,12 @@ export default function NewRoom({connectedUsers=[],setIsOpenModal,loggedInUser})
         setNewUsersInRoom(prevUsers =>
             prevUsers.includes(user) ? prevUsers.filter(u => u !== user) : [...prevUsers, user]
         )
+    }
+
+    const createConversation = async()=>{
+        newRoom.type==='public'?  await createNewConversation(newRoom,filteredUsers) : await createNewConversation(newRoom,newUsersInRoom)
+        setIsOpenModal(false)
+        updateUser()
     }
 
     return(
@@ -52,9 +58,7 @@ export default function NewRoom({connectedUsers=[],setIsOpenModal,loggedInUser})
             </div>
             }
             </div>
-            <button onClick={()=>{createNewConversation(newRoom,newRoom)
-                                    setIsOpenModal(false)
-            }}>Create</button>
+            <button onClick={createConversation}>Create</button>
             <button onClick={()=>setIsOpenModal(false)}>Back</button>
 
 </div>

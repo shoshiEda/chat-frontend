@@ -9,7 +9,7 @@ function App() {
   const [loggedInUser,setLoggedInUser] = useState((JSON.parse(sessionStorage.getItem('loggedInUser'))) || null)
 
 
-  return (
+  return(
     <>
     {loggedInUser? <MainArea loggedInUser={loggedInUser} setLoggedInUser={setLoggedInUser} />  :<LoginPage setLoggedInUser={setLoggedInUser} />}
     </>
