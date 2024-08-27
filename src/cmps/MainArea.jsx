@@ -3,12 +3,15 @@ import { logout ,getConnectedUsers ,getLoggedInUser} from '../services/user.serv
 import { addNewMsg , getConversationById ,createNewConversation } from '../services/conversation.service.js'
 import { useState , useEffect, useRef} from 'react';
 import NewRoom from './NewRoom.jsx'
+import { io } from 'socket.io-client'
+
 export default function MainArea({loggedInUser,setLoggedInUser}){
 
     const [selectedRoom,setSelectedRoom] = useState({id:"",type:"room",name:"Main",msgs:[]})
     const [connectedUsers,setConnectedUsers] = useState(null)
     const [isOpenModal,setIsOpenModal] = useState(false)
-
+    const [isOpenMsg,setIsOpenMsg] = useState(false)
+    const [modalMsg,setmodalMsg] = useState({msg:"",room:""})
 
     const filteredUsers = connectedUsers? connectedUsers.filter(user => user !== loggedInUser.userName):null
 
@@ -17,12 +20,19 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     const chatEndRef = useRef(null)
     const isFirstRender = useRef(true);
 
+    console.log(isFirstRender.current,chatEndRef.current)
 
 
     useEffect(() => {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [selectedRoom])
-
+        const timer = setTimeout(() => {
+            if (chatEndRef.current) {
+                chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }, 100); // עיכוב של 100 מילישניות
+    
+        return () => clearTimeout(timer);
+    }, [selectedRoom.msgs]);
+    
 
     
     useEffect(()=>{
@@ -41,7 +51,27 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
             loadConversation(loggedInUser.conversations[loggedInUser.conversations.length-1].name)}
     }, [loggedInUser])
 
+    useEffect(() => {
+        const socket = io.connect('http://127.0.0.1:8000');
+        
+        socket.on("receive-msg", async (data) => {
+            const senderConversation = await getConversationById(data.conversationId);
 
+            if (data.conversationId === selectedRoom.id) {
+                loadConversation(selectedRoom.name);
+            } else {
+                if (senderConversation.type === 'private' &&senderConversation.usersInclude && senderConversation.usersInclude.length===2) {
+                    setmodalMsg({ msg: `you received a private message from ${data.username} - click to view the message`, room: senderConversation.name });
+                    setIsOpenMsg(true);
+                    setTimeout(() => setIsOpenMsg(false), 5000)
+                }
+            }
+        });
+    
+        return () => {
+            socket.disconnect()
+        };
+    }, [selectedRoom]);
 
 
     async function updateUser(){
@@ -51,10 +81,10 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         }
     
     async function send(){
+        if (!msg.trim()) return
         try{
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===selectedRoom.name)
-        const {msgs} = await addNewMsg(selectedConversation.id,msg,loggedInUser.userName)
-        setSelectedRoom({...selectedRoom,msgs})
+        await addNewMsg(selectedConversation.id,msg,loggedInUser.userName)
         setMsg("")
     }catch(err){
         console.log('Error during sending new msg:', err)     
@@ -66,10 +96,10 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     async function loadConversation(conversationName) {
         try{
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===conversationName)
-        const conversation = selectedConversation._id? await getConversationById(selectedConversation.id) : selectedConversation      
+        const conversation = selectedConversation._id? selectedConversation : await getConversationById(selectedConversation.id) 
         if(conversation)
         {
-            setSelectedRoom({id: selectedConversation.id,type:conversation.type,name:conversationName,msgs:conversation.msgs || []})
+            setSelectedRoom({id: selectedConversation.id,type:conversation.type,name:conversationName,msgs:conversation.msgs || {}})
             return conversation
         }
     }catch(err){
@@ -98,12 +128,14 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
 
             <div className='windows'>
                 <div className='msg-area'>
-                {selectedRoom.msgs.length>0 && selectedRoom.msgs.slice().reverse().map((msg,idx)=>
+                    <ul>
+                {selectedRoom.msgs && selectedRoom.msgs.length>0 && selectedRoom.msgs.slice().reverse().map((msg,idx)=>
                     <li key={idx}
                     className={(msg.username===loggedInUser.userName)?'me':'others'}
                     ><p style={{color:(msg.username===loggedInUser.userName)?'Green':'Purple'}}>{(msg.username===loggedInUser.userName)? 'you' :msg.username}:</p><p>{msg.msg}</p></li>
                 )}
-                <div ref={chatEndRef}></div>
+                    <div className="chat-end-ref" ref={chatEndRef}></div>
+                    </ul>
                 </div>
                 <div className='right-side'>
                     <label>Rooms</label>
@@ -132,6 +164,13 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                 <button onClick={send}>send</button>
             </div>
             {isOpenModal && <NewRoom connectedUsers={connectedUsers} setIsOpenModal={setIsOpenModal} loggedInUser={loggedInUser} updateUser={updateUser}/>}
+            {isOpenMsg && <div className='modal-msg' onClick={()=>loadConversation(modalMsg.room)}>
+                <button onClick={(e)=>{
+                    e.stopPropagation()
+                    setIsOpenMsg(false)
+                }}>X</button>
+                <h3>{modalMsg.msg}</h3>
+            </div>}
         </section>
     )
 }
