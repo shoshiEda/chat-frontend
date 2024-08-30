@@ -1,15 +1,17 @@
 import axios from 'axios'
-import { io } from 'socket.io-client'
+import { handleSendMessage,handlePrivateMessage } from './socketService'
 
 const url = 'http://127.0.0.1:8000/conversation'
 
-const socket = io.connect('http://127.0.0.1:8000')
 
-
-export const addNewMsg = async(conversationId,msg,username)=>{
+export const addNewMsg = async(conversation,msg,username)=>{
 try{
-    const resp = await axios.post(url+`/msg/${conversationId}`,{msg,username})
-    socket.emit("send-msg",{conversationId,msg,username})
+    const resp = await axios.post(url+`/msg/${conversation._id}`,{msg,username})
+    if(conversation.type==='public')
+        handleSendMessage({conversationId:conversation._id,msg,username})
+    else{
+        handlePrivateMessage({conversationId:conversation._id,msg,username})
+    }
         return {msgs:resp.data.msgs}
 }catch(err){
     console.log('Error during adding msg:', err)

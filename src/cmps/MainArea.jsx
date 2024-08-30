@@ -5,44 +5,82 @@ import { useState , useEffect, useRef} from 'react';
 import NewRoom from './NewRoom.jsx'
 import { io } from 'socket.io-client'
 
+
 export default function MainArea({loggedInUser,setLoggedInUser}){
 
-    const [selectedRoom,setSelectedRoom] = useState({id:"",type:"room",name:"Main",msgs:[]})
+
+
+    const [selectedRoom,setSelectedRoom] = useState({id:"",type:"public",name:"Main",msgs:[]})
     const [connectedUsers,setConnectedUsers] = useState(null)
     const [isOpenModal,setIsOpenModal] = useState(false)
     const [isOpenMsg,setIsOpenMsg] = useState(false)
     const [modalMsg,setmodalMsg] = useState({msg:"",room:""})
+    const [socketConnected, setSocketConnected] = useState(false);
+
+
 
     const filteredUsers = connectedUsers? connectedUsers.filter(user => user !== loggedInUser.userName):null
 
     const [msg,setMsg] = useState("")
 
     const chatEndRef = useRef(null)
-    const isFirstRender = useRef(true);
+    const chatEndRef2 = useRef(null)
+    const isFirstRender = useRef(true)
 
-    console.log(isFirstRender.current,chatEndRef.current)
-
+    const [socket, setSocket] = useState(null);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            if (chatEndRef.current) {
-                chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            }
-        }, 100); // עיכוב של 100 מילישניות
-    
-        return () => clearTimeout(timer);
+        if (loggedInUser) {
+          const newSocket = io('http://localhost:8000');
+      
+          newSocket.on('connect', () => {
+            setSocket(newSocket)
+            setSocketConnected(true)
+          })
+      
+          newSocket.on('disconnect', () => {
+            setSocketConnected(false);
+          });
+      
+          return () => {
+            newSocket.disconnect();
+          };
+        }
+      }, [loggedInUser]);
+
+      useEffect(() => {
+        if (socketConnected && !isFirstRender.current && loggedInUser) {
+          isFirstRender.current = false;
+          const lastConversation = loggedInUser.conversations[loggedInUser.conversations.length - 1];
+          loadConversation(lastConversation.name);
+        }
+      }, [socketConnected, loggedInUser])
+      
+
+    useEffect(() => {
+        if(isFirstRender && socket && socket.connected)
+        loadConversation('Main')
+      }, [socket])
+  
+    useEffect(() => {
+      if (socket) {
+        socket.on('receive-msg', (data) => {
+        loadConversation(data.conversationName)
+        })
+  
+        return () => {
+          socket.off('receive-msg')
+        };
+      } 
+    }, [socket])
+
+    useEffect(() => {
+        if(!chatEndRef.current ||!chatEndRef2.current) return
+        chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        chatEndRef2.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
     }, [selectedRoom.msgs]);
     
 
-    
-    useEffect(()=>{
-        const fetchUsers = async()=>{
-            const users = await getConnectedUsers()
-            setConnectedUsers(users)
-        }
-        fetchUsers()
-        loadConversation('Main')
-    },[])
 
     useEffect(() => {
         if(isFirstRender.current){
@@ -51,28 +89,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
             loadConversation(loggedInUser.conversations[loggedInUser.conversations.length-1].name)}
     }, [loggedInUser])
 
-    useEffect(() => {
-        const socket = io.connect('http://127.0.0.1:8000');
-        
-        socket.on("receive-msg", async (data) => {
-            const senderConversation = await getConversationById(data.conversationId);
-
-            if (data.conversationId === selectedRoom.id) {
-                loadConversation(selectedRoom.name);
-            } else {
-                if (senderConversation.type === 'private' &&senderConversation.usersInclude && senderConversation.usersInclude.length===2) {
-                    setmodalMsg({ msg: `you received a private message from ${data.username} - click to view the message`, room: senderConversation.name });
-                    setIsOpenMsg(true);
-                    setTimeout(() => setIsOpenMsg(false), 5000)
-                }
-            }
-        });
     
-        return () => {
-            socket.disconnect()
-        };
-    }, [selectedRoom]);
-
 
     async function updateUser(){
             const user = await getLoggedInUser( loggedInUser.userId )
@@ -81,10 +98,12 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         }
     
     async function send(){
-        if (!msg.trim()) return
+        if (!msg) return
         try{
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===selectedRoom.name)
-        await addNewMsg(selectedConversation.id,msg,loggedInUser.userName)
+        const conversation = await getConversationById(selectedConversation.id) 
+        await addNewMsg(conversation,msg,loggedInUser.userName)
+        await socket.emit('send-msg',{conversationId:selectedConversation.id,conversationName:conversation.name,msg,username:loggedInUser.userName})
         setMsg("")
     }catch(err){
         console.log('Error during sending new msg:', err)     
@@ -94,13 +113,19 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     
 
     async function loadConversation(conversationName) {
+        if (!socketConnected) {
+            return;
+          }
         try{
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===conversationName)
         const conversation = selectedConversation._id? selectedConversation : await getConversationById(selectedConversation.id) 
         if(conversation)
         {
             setSelectedRoom({id: selectedConversation.id,type:conversation.type,name:conversationName,msgs:conversation.msgs || {}})
-            return conversation
+            if (socket && socket.connected) {
+                socket.emit('join-room', conversation._id);
+              } 
+                         return conversation
         }
     }catch(err){
         console.log('Error during load conversation:', err);     
@@ -134,7 +159,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                     className={(msg.username===loggedInUser.userName)?'me':'others'}
                     ><p style={{color:(msg.username===loggedInUser.userName)?'Green':'Purple'}}>{(msg.username===loggedInUser.userName)? 'you' :msg.username}:</p><p>{msg.msg}</p></li>
                 )}
-                    <div className="chat-end-ref" ref={chatEndRef}></div>
+                    <div ref={chatEndRef2}></div>
                     </ul>
                 </div>
                 <div className='right-side'>
@@ -143,7 +168,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                         {loggedInUser.conversations && loggedInUser.conversations.map(conversation=><li key={conversation.id} 
                         onClick={()=>loadConversation(conversation.name)}
                         className={conversation.name===selectedRoom.name?"active" : ""}>{conversation.name}</li>)}
-                        <div ref={chatEndRef}></div>
+                        {selectedRoom.name!=='Main' &&<div ref={chatEndRef}></div>}
 
                     </div>
                     <label>Connected users</label>
