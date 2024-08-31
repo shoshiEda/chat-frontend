@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { logout ,getConnectedUsers ,getLoggedInUser} from '../services/user.service.js'
+import { logout ,getLoggedInUser} from '../services/user.service.js'
 import { addNewMsg , getConversationById ,createNewConversation } from '../services/conversation.service.js'
 import { useState , useEffect, useRef} from 'react';
 import NewRoom from './NewRoom.jsx'
@@ -11,7 +11,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
 
 
     const [selectedRoom,setSelectedRoom] = useState({id:"",type:"public",name:"Main",msgs:[]})
-    const [connectedUsers,setConnectedUsers] = useState(null)
+    const [connectedUsers,setConnectedUsers] = useState([])
     const [isOpenModal,setIsOpenModal] = useState(false)
     const [isOpenMsg,setIsOpenMsg] = useState(false)
     const [modalMsg,setmodalMsg] = useState({msg:"",room:""})
@@ -27,45 +27,58 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     const chatEndRef2 = useRef(null)
     const isFirstRender = useRef(true)
 
-    const [socket, setSocket] = useState(null);
+    const [socket, setSocket] = useState(null)
+
+    console.log(isFirstRender)
 
     useEffect(() => {
         if (loggedInUser) {
-          const newSocket = io('http://localhost:8000');
+          const newSocket = io('http://localhost:8000')
+         
       
           newSocket.on('connect', () => {
             setSocket(newSocket)
+            console.log(socket)  
             setSocketConnected(true)
           })
       
           newSocket.on('disconnect', () => {
-            setSocketConnected(false);
+            setSocketConnected(false)
+          });
+
+          newSocket.on('update-users', (users) => {
+            setConnectedUsers(users)
           });
       
           return () => {
-            newSocket.disconnect();
+            newSocket.disconnect()
           };
         }
-      }, [loggedInUser]);
+      }, [loggedInUser])
 
       useEffect(() => {
-        if (socketConnected && !isFirstRender.current && loggedInUser) {
-          isFirstRender.current = false;
+       if(!isFirstRender.current){
           const lastConversation = loggedInUser.conversations[loggedInUser.conversations.length - 1];
-          loadConversation(lastConversation.name);
-        }
-      }, [socketConnected, loggedInUser])
+          loadConversation(lastConversation.name)
+        }}, [loggedInUser])
       
 
     useEffect(() => {
-        if(isFirstRender && socket && socket.connected)
-        loadConversation('Main')
-      }, [socket])
+      if (socketConnected && !isFirstRender.current && loggedInUser) {
+        isFirstRender.current = false;
+                loadConversation('Main')
+      }}, [socketConnected, socket])
   
     useEffect(() => {
       if (socket) {
         socket.on('receive-msg', (data) => {
-        loadConversation(data.conversationName)
+          if(selectedRoom.name===data.conversationName)
+                loadConversation(data.conversationName)
+          else{
+            setIsOpenMsg(true)
+            setmodalMsg({msg:`you got a massage from ${data.username} at room ${data.conversationName}-click to go to the room`,room:data.conversationName})
+            setTimeout(()=>setIsOpenMsg(false),5000)
+          }
         })
   
         return () => {
@@ -104,6 +117,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         const conversation = await getConversationById(selectedConversation.id) 
         await addNewMsg(conversation,msg,loggedInUser.userName)
         await socket.emit('send-msg',{conversationId:selectedConversation.id,conversationName:conversation.name,msg,username:loggedInUser.userName})
+        await loadConversation(selectedRoom.name)
         setMsg("")
     }catch(err){
         console.log('Error during sending new msg:', err)     
@@ -119,11 +133,17 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         try{
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===conversationName)
         const conversation = selectedConversation._id? selectedConversation : await getConversationById(selectedConversation.id) 
+        console.log(conversation,selectedRoom)
         if(conversation)
         {
+            if (selectedRoom.id){
+              console.log(selectedRoom.name, loggedInUser.userName)
+              socket.emit('leave-room', selectedRoom.name, loggedInUser.userName)
+            }
             setSelectedRoom({id: selectedConversation.id,type:conversation.type,name:conversationName,msgs:conversation.msgs || {}})
             if (socket && socket.connected) {
-                socket.emit('join-room', conversation._id);
+              console.log(conversationName, loggedInUser.userName)
+              socket.emit('join-room', conversationName, loggedInUser.userName)
               } 
                          return conversation
         }
@@ -185,10 +205,19 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
             <div className='sending-msg-area'>
                 to:<span className='to'>{ selectedRoom.name}</span>
                 <br/>
-                <input type="text" onChange={(e)=>setMsg(e.target.value)} value={msg}/>
+                <input 
+                  type="text" 
+                  onChange={(e) => setMsg(e.target.value)} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()  
+                      send()}}}
+                  value={msg}
+                />
+
                 <button onClick={send}>send</button>
             </div>
-            {isOpenModal && <NewRoom connectedUsers={connectedUsers} setIsOpenModal={setIsOpenModal} loggedInUser={loggedInUser} updateUser={updateUser}/>}
+            {isOpenModal && <NewRoom setIsOpenModal={setIsOpenModal} loggedInUser={loggedInUser} updateUser={updateUser}/>}
             {isOpenMsg && <div className='modal-msg' onClick={()=>loadConversation(modalMsg.room)}>
                 <button onClick={(e)=>{
                     e.stopPropagation()

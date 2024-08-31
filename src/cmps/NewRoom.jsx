@@ -1,15 +1,29 @@
 /* eslint-disable react/prop-types */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { createNewConversation } from '../services/conversation.service'
+import { getConnectedUsers } from '../services/user.service'
 
-export default function NewRoom({connectedUsers=[],setIsOpenModal,loggedInUser,updateUser}){
+export default function NewRoom({setIsOpenModal,loggedInUser,updateUser}){
 
     const [newRoom, setNewRoom] = useState({type:"public",name:"",username:loggedInUser.userName})
     const [newUsersInRoom,setNewUsersInRoom] = useState([])
+    const [connectedUsers,setConnectedUsers] = useState([])
+
+    const filteredUsers = connectedUsers && connectedUsers.length ?connectedUsers.filter(user=>user!==loggedInUser.userName):[]
 
 
-    const filteredUsers = connectedUsers.filter(user=>user!==loggedInUser.userName)
+
+
+    useEffect(
+        ()=>{
+            const fetchUsers = async()=>{
+            const tempUsers = await getConnectedUsers()
+            setConnectedUsers(tempUsers)
+            }
+            fetchUsers()
+        },[])
+
 
     const handleStickChange = (event) => {
         const result = (parseInt(event.target.value,10));

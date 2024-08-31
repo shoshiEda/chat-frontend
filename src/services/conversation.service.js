@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { handleSendMessage,handlePrivateMessage } from './socketService'
 
 const url = 'http://127.0.0.1:8000/conversation'
 
@@ -7,11 +6,6 @@ const url = 'http://127.0.0.1:8000/conversation'
 export const addNewMsg = async(conversation,msg,username)=>{
 try{
     const resp = await axios.post(url+`/msg/${conversation._id}`,{msg,username})
-    if(conversation.type==='public')
-        handleSendMessage({conversationId:conversation._id,msg,username})
-    else{
-        handlePrivateMessage({conversationId:conversation._id,msg,username})
-    }
         return {msgs:resp.data.msgs}
 }catch(err){
     console.log('Error during adding msg:', err)
