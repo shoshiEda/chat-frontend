@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
 import { logout ,getLoggedInUser} from '../services/user.service.js'
 import { addNewMsg , getConversationById ,createNewConversation } from '../services/conversation.service.js'
@@ -14,10 +15,9 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     const [connectedUsers,setConnectedUsers] = useState([])
     const [isOpenModal,setIsOpenModal] = useState(false)
     const [isOpenMsg,setIsOpenMsg] = useState(false)
-    const [modalMsg,setmodalMsg] = useState({msg:"",room:""})
-    const [socketConnected, setSocketConnected] = useState(false);
-
-
+    const [modalMsg,setModalMsg] = useState({msg:"",room:""})
+    const socketRef = useRef(null)
+    const [roomMsgs,setRoomMsgs] = useState([])
 
     const filteredUsers = connectedUsers? connectedUsers.filter(user => user !== loggedInUser.userName):null
 
@@ -26,66 +26,16 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     const chatEndRef = useRef(null)
     const chatEndRef2 = useRef(null)
     const isFirstRender = useRef(true)
+    const selectedRoomRef = useRef(selectedRoom)
 
-    const [socket, setSocket] = useState(null)
-
-    console.log(isFirstRender)
-
+    
     useEffect(() => {
-        if (loggedInUser) {
-          const newSocket = io('http://localhost:8000')
-         
-      
-          newSocket.on('connect', () => {
-            setSocket(newSocket)
-            console.log(socket)  
-            setSocketConnected(true)
-          })
-      
-          newSocket.on('disconnect', () => {
-            setSocketConnected(false)
-          });
+      selectedRoomRef.current = selectedRoom;
+    }, [selectedRoom])
 
-          newSocket.on('update-users', (users) => {
-            setConnectedUsers(users)
-          });
-      
-          return () => {
-            newSocket.disconnect()
-          };
-        }
-      }, [loggedInUser])
+    console.log(roomMsgs)
 
-      useEffect(() => {
-       if(!isFirstRender.current){
-          const lastConversation = loggedInUser.conversations[loggedInUser.conversations.length - 1];
-          loadConversation(lastConversation.name)
-        }}, [loggedInUser])
-      
-
-    useEffect(() => {
-      if (socketConnected && !isFirstRender.current && loggedInUser) {
-        isFirstRender.current = false;
-                loadConversation('Main')
-      }}, [socketConnected, socket])
-  
-    useEffect(() => {
-      if (socket) {
-        socket.on('receive-msg', (data) => {
-          if(selectedRoom.name===data.conversationName)
-                loadConversation(data.conversationName)
-          else{
-            setIsOpenMsg(true)
-            setmodalMsg({msg:`you got a massage from ${data.username} at room ${data.conversationName}-click to go to the room`,room:data.conversationName})
-            setTimeout(()=>setIsOpenMsg(false),5000)
-          }
-        })
-  
-        return () => {
-          socket.off('receive-msg')
-        };
-      } 
-    }, [socket])
+    /*
 
     useEffect(() => {
         if(!chatEndRef.current ||!chatEndRef2.current) return
@@ -102,7 +52,45 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
             loadConversation(loggedInUser.conversations[loggedInUser.conversations.length-1].name)}
     }, [loggedInUser])
 
-    
+    */
+
+    useEffect(()=>{
+      const newSocket = io('http://localhost:8000')
+      socketRef.current = newSocket
+
+      return () => {
+
+        if (socketRef.current) {
+          socketRef.current.disconnect()
+        }}
+    },[])
+
+    useEffect(()=>{
+      if(socketRef.current && isFirstRender.current)
+        {
+            loadConversation("Main")
+          isFirstRender.current=false
+        }
+        socketRef.current.on('update-users', (users) => {
+          console.log('update',users)
+            setConnectedUsers(users)
+        })
+
+        socketRef.current.on('receive-msg', (data) => {
+            if (selectedRoomRef.current.name === data.conversationName) {
+              setRoomMsgs(prevMsgs=>[...prevMsgs,{username:data.username,msg:data.msg}])
+            } else {
+                setIsOpenMsg(true)
+                setModalMsg({
+                    msg: `You got a message from ${data.username} at room ${data.conversationName} - click to go to the room`,
+                    room: data.conversationName,
+                });
+                setTimeout(() => setIsOpenMsg(false), 5000)
+            }
+        });
+    },[socketRef.current])
+
+
 
     async function updateUser(){
             const user = await getLoggedInUser( loggedInUser.userId )
@@ -116,8 +104,8 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===selectedRoom.name)
         const conversation = await getConversationById(selectedConversation.id) 
         await addNewMsg(conversation,msg,loggedInUser.userName)
-        await socket.emit('send-msg',{conversationId:selectedConversation.id,conversationName:conversation.name,msg,username:loggedInUser.userName})
-        await loadConversation(selectedRoom.name)
+        await socketRef.current.emit('send-msg',{conversationId:selectedConversation.id,conversationName:conversation.name,msg,username:loggedInUser.userName})
+        setRoomMsgs(prevMsgs=>[...prevMsgs,{username:loggedInUser.userName,msg}])
         setMsg("")
     }catch(err){
         console.log('Error during sending new msg:', err)     
@@ -127,23 +115,21 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     
 
     async function loadConversation(conversationName) {
-        if (!socketConnected) {
+        if (!socketRef.current) {
             return;
           }
         try{
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===conversationName)
         const conversation = selectedConversation._id? selectedConversation : await getConversationById(selectedConversation.id) 
-        console.log(conversation,selectedRoom)
         if(conversation)
         {
             if (selectedRoom.id){
-              console.log(selectedRoom.name, loggedInUser.userName)
-              socket.emit('leave-room', selectedRoom.name, loggedInUser.userName)
+              socketRef.current.emit('leave-room', selectedRoom.name, loggedInUser.userName)
             }
             setSelectedRoom({id: selectedConversation.id,type:conversation.type,name:conversationName,msgs:conversation.msgs || {}})
-            if (socket && socket.connected) {
-              console.log(conversationName, loggedInUser.userName)
-              socket.emit('join-room', conversationName, loggedInUser.userName)
+            setRoomMsgs(conversation.msgs || [])
+            if (socketRef.current) {
+              socketRef.current.emit('join-room', conversationName, loggedInUser.userName)
               } 
                          return conversation
         }
@@ -155,7 +141,11 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     async function logingOut(userId){
         try{
         const resp = await logout(userId)
-        if(resp==='success')    setLoggedInUser(null)
+        if(resp==='success')    
+          {
+            socketRef.current.emit('leave-room', selectedRoom.name, loggedInUser.userName)
+            setLoggedInUser(null)
+          }
         }catch(err){
             console.log('Error during logout:', err);     
           }
@@ -174,7 +164,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
             <div className='windows'>
                 <div className='msg-area'>
                     <ul>
-                {selectedRoom.msgs && selectedRoom.msgs.length>0 && selectedRoom.msgs.slice().reverse().map((msg,idx)=>
+                {roomMsgs.length>0 && roomMsgs.slice().reverse().map((msg,idx)=>
                     <li key={idx}
                     className={(msg.username===loggedInUser.userName)?'me':'others'}
                     ><p style={{color:(msg.username===loggedInUser.userName)?'Green':'Purple'}}>{(msg.username===loggedInUser.userName)? 'you' :msg.username}:</p><p>{msg.msg}</p></li>
