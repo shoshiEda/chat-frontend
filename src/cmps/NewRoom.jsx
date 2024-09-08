@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createNewConversation } from '../services/conversation.service'
 import { getConnectedUsers } from '../services/user.service'
 
-export default function NewRoom({setIsOpenModal,loggedInUser,updateUser}){
+export default function NewRoom({setIsOpenModal,loggedInUser,updateUser,socket}){
 
     const [newRoom, setNewRoom] = useState({type:"public",name:"",username:loggedInUser.userName})
     const [newUsersInRoom,setNewUsersInRoom] = useState([])
@@ -38,7 +38,16 @@ export default function NewRoom({setIsOpenModal,loggedInUser,updateUser}){
     }
 
     const createConversation = async()=>{
-        newRoom.type==='public'?  await createNewConversation(newRoom,filteredUsers) : await createNewConversation(newRoom,newUsersInRoom)
+        if(newRoom.type==='public') 
+        {
+            await createNewConversation(newRoom,filteredUsers)
+            socket.emit('create-new-room',{room:newRoom,users:filteredUsers})
+        }
+        else{
+            await createNewConversation(newRoom,newUsersInRoom)
+            socket.emit('create-new-room',{room:newRoom,users:newUsersInRoom})
+         }
+
         setIsOpenModal(false)
         updateUser()
     }
