@@ -49,7 +49,7 @@ export default function NewRoom({setIsOpenModal,loggedInUser,updateUser,socket})
          }
 
         setIsOpenModal(false)
-        updateUser()
+        updateUser(true)
     }
 
     return(

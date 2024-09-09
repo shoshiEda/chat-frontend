@@ -45,3 +45,19 @@ export const joinToConversation = (user,newConversation)=>{
         console.log('Error during creating a new conversation:', err)
     }
 }
+
+export const exitFromConversation = (user,newConversation)=>{
+    try{
+        axios.post(url+`/remove-user/${newConversation._id}/${user}`)
+    }catch(err){
+        console.log('Error during creating a new conversation:', err)
+    }
+}
+
+export const blockUsers = (conversationId,usernames)=>{
+    try{
+        axios.post(url+`/block/${conversationId}`,{usernames})
+    }catch(err){
+        console.log('Error during blocking users:', err)
+    }
+}

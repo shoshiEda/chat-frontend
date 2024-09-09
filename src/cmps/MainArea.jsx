@@ -4,6 +4,7 @@ import { logout ,getLoggedInUser} from '../services/user.service.js'
 import { addNewMsg , getConversationById ,createNewConversation } from '../services/conversation.service.js'
 import { useState , useEffect, useRef} from 'react';
 import NewRoom from './NewRoom.jsx'
+import ConversationActions from './ConversationActions.jsx'
 import { io } from 'socket.io-client'
 
 
@@ -19,6 +20,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     const socketRef = useRef(null)
     const [roomMsgs,setRoomMsgs] = useState([])
 
+
     const filteredUsers = connectedUsers
     ? Array.from(new Set(
         connectedUsers
@@ -26,6 +28,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
           .map(user => user.name)  
       ))
     : []
+
 
     const [msg,setMsg] = useState("")
 
@@ -47,14 +50,6 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
         chatEndRef2.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
     }, [roomMsgs])
-    
-
-
-    useEffect(() => {
-        if(!isFirstRender.current){
-            loadConversation(loggedInUser.conversations[loggedInUser.conversations.length-1].name)}
-    }, [loggedInUser])
-
     
 
     useEffect(()=>{
@@ -83,13 +78,35 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
             setConnectedUsers(users)
         })
 
+        socketRef.current.on('new-blocked-notification',(data)=>{
+          loadConversation(data.room.name)
+        })
+
        
       
-        socketRef.current.on('receive-msg', (data) => {
+        socketRef.current.on('receive-msg', async(data) => {
+            if(selectedRoom.blocked)
+            {
+              if (selectedRoom.blocked.includes(loggedInUser.userName)) return
+            }else{
+              const conversation = await getConversationById(data.room._id) 
+              if(conversation.blocked)
+                {
+                  if (conversation.blocked.includes(loggedInUser.userName)) return
+            }}
             setRoomMsgs(prevMsgs => [...prevMsgs,{ username: data.username, msg: data.msg }])
         })
 
-        socketRef.current.on('notification',(data)=>{
+        socketRef.current.on('notification',async(data)=>{
+          if(selectedRoom.blocked)
+            {
+              if (selectedRoom.blocked.includes(loggedInUser.userName)) return
+            }else{
+              const conversation = await getConversationById(data.room._id) 
+              if(conversation.blocked)
+                {
+                  if (conversation.blocked.includes(loggedInUser.userName)) return
+            }}
           setIsOpenMsg(true)
           setModalMsg({
             msg: `You got a message from ${data.username} at room ${data.conversationName} - click to go to the room`,
@@ -99,13 +116,14 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         })
 
         socketRef.current.on('new-room-notification',(data)=>{
-          updateUser()
           setIsOpenMsg(true)
           setModalMsg({
             msg: `${data.room.username} has added you to room ${data.room.name} - click to go to the room`,
             room: data.room.name,
           });
           setTimeout(() => setIsOpenMsg(false), 5000)
+          updateUser()
+
         })
         
       
@@ -120,26 +138,48 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
 
     async function createNewRoom(user){
 
-      const conversation = loggedInUser.conversations.find(con=>con.name===`${loggedInUser.userName} - ${user}` || con.name===`${user} - ${loggedInUser.userName}`))
+      const conversation = loggedInUser.conversations.find(con=>con.name===`${loggedInUser.userName} - ${user}` || con.name===`${user} - ${loggedInUser.userName}`)
       if(conversation){
         loadConversation(conversation.name)
         return
       }
       await createNewConversation({type:'private',name:`${loggedInUser.userName} - ${user}`,username:`${loggedInUser.userName}`},[user])
       socketRef.current.emit('create-new-room',{room:{type:'private',name:`${loggedInUser.userName} - ${user}`,username:`${loggedInUser.userName}`},users:[user]})
-      updateUser() 
+      updateUser(true) 
     }
 
 
 
-    async function updateUser(){
+    async function updateUser(isLoadLastRoom=false){
+            const currentRoom = selectedRoomRef.current
+            console.log(currentRoom,isLoadLastRoom)
             const user = await getLoggedInUser( loggedInUser.userId )
             setLoggedInUser(user)
             sessionStorage.setItem('loggedInUser', JSON.stringify(user))
+
+            isLoadLastRoom? 
+              loadConversation(loggedInUser.conversations[loggedInUser.conversations.length-1].name) 
+               : 
+               loadConversation(currentRoom.name)
         }
     
     async function send(){
         if (!msg) return
+        if(selectedRoom.blocked)
+          {
+            if (selectedRoom.blocked.includes(loggedInUser.userName)) {
+              setRoomMsgs(prevMsgs => [...prevMsgs,{ username: 'system', msg: 'you are blocked from this room' }])
+              return
+            }
+          }else{
+            const conversation = await getConversationById(selectedRoom._id || selectedRoom.id) 
+            if(conversation.blocked)
+              {
+                if (conversation.blocked.includes(loggedInUser.userName)) {
+                  setRoomMsgs(prevMsgs => [...prevMsgs,{ username: 'system', msg: 'you are blocked from this room' }])
+                  return
+                }
+          }}
         try{
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===selectedRoom.name)
         const conversation = await getConversationById(selectedConversation.id) 
@@ -241,6 +281,8 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                         </div>
                     </div>
             </div>
+            {selectedRoom.type==='private' && <ConversationActions loggedInUser={loggedInUser} selectedRoom={selectedRoom} socket={socketRef.current} updateUser={updateUser}/>}
+
             <div className='sending-msg-area'>
                 to:<span className='to'>{ selectedRoom.name}</span>
                 <br/>
