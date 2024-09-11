@@ -6,7 +6,8 @@
   
   .login-page{
     background-color: var(--ClrLoginInside);
-    width: 30rem;
+    width: 60%;
+    max-width: 30rem;
     text-align: center;
     padding-block: 2rem;
     border-radius: 2rem;

@@ -116,9 +116,10 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         })
 
         socketRef.current.on('new-room-notification',(data)=>{
+          console.log(data)
           setIsOpenMsg(true)
           setModalMsg({
-            msg: `${data.room.username} has added you to room ${data.room.name} - click to go to the room`,
+            msg: `${data.room.creator} has added you to room ${data.room.name} - click to go to the room`,
             room: data.room.name,
           });
           setTimeout(() => setIsOpenMsg(false), 5000)
@@ -143,22 +144,23 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         loadConversation(conversation.name)
         return
       }
-      await createNewConversation({type:'private',name:`${loggedInUser.userName} - ${user}`,username:`${loggedInUser.userName}`},[user])
+      const data = await createNewConversation({type:'private',name:`${loggedInUser.userName} - ${user}`,username:`${loggedInUser.userName}`},[user])
+      console.log(data)
       socketRef.current.emit('create-new-room',{room:{type:'private',name:`${loggedInUser.userName} - ${user}`,username:`${loggedInUser.userName}`},users:[user]})
-      updateUser(true) 
+      if(data){
+        updateUser(true) 
+      }
     }
 
 
 
     async function updateUser(isLoadLastRoom=false){
             const currentRoom = selectedRoomRef.current
-            console.log(currentRoom,isLoadLastRoom)
             const user = await getLoggedInUser( loggedInUser.userId )
             setLoggedInUser(user)
             sessionStorage.setItem('loggedInUser', JSON.stringify(user))
-
             isLoadLastRoom? 
-              loadConversation(loggedInUser.conversations[loggedInUser.conversations.length-1].name) 
+              loadConversation(user.conversations[user.conversations.length-1].name) 
                : 
                loadConversation(currentRoom.name)
         }
@@ -214,6 +216,12 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===conversationName)
         const conversation = selectedConversation._id? selectedConversation : await getConversationById(selectedConversation.id) 
         if(conversation)
+          if(conversation.blocked && conversation.blocked.includes(loggedInUser.userName))
+          {
+            alert("you are blocked from this room")
+            return 
+
+          }
         {
             if (selectedRoom.id){
               socketRef.current.emit('leave-room', selectedRoom.name, loggedInUser.userName)
@@ -248,7 +256,8 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     return(
         <section className="chat-page">
             <div className="header">
-                <h1>hello {loggedInUser.userName}</h1>
+                <h1 className='logo'>my-chat</h1>
+                <h3>hello {loggedInUser.userName}</h3>
                 <button onClick={()=>logingOut(loggedInUser.userId)}>Log out</button>
             </div>
             <button className='create-new-room' onClick={()=>setIsOpenModal(true)}>Create new room</button>

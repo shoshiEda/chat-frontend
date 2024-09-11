@@ -15,6 +15,15 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    font-family: 'Edu VIC WA NT Beginner', cursive;
+
+}
+
+.logo{
+    margin-inline-end: auto;
+    margin-inline-start: 1rem;
+    font-size: xx-large;
+    font-weight: bold;
 }
 
 .msg-area{
@@ -155,5 +164,43 @@ font-size: 1.3rem;
 
 .delete-btn:hover{
     background-color: var(--btnDeleteClrHover);
+}
+
+.rooms-area-mobile{
+    border: 1px solid black;
+
+}
+
+.mobile-header{
+    display: flex;
+    align-items: center;
+    background-color:var(--ClrBtn);
+    color:var(--ClrLoginInside);
+}
+
+.mobile-header i{
+    margin-inline: 0.5rem;
+}
+
+.mobile-modal{
+    position: absolute;
+    right: 1.5rem;
+    top: 1rem;
+    z-index: 5;
+    color: var(--ClrLoginInside);
+    background-color:var(--ClrBtn);
+}
+
+.mobile-modal li{
+    border: 1px solid var(--ClrLoginInside);
+    margin: 0;
+
+}
+
+.rooms-area-mobile li{
+    border: 1px solid black;
+    margin: 0;
+    padding: 0.5rem;
+    overflow-y: auto;
 }
 

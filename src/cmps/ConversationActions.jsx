@@ -16,11 +16,6 @@ export default function ConversationActions({loggedInUser,selectedRoom,socket,up
 
     const actionType = useRef("")
 
-
-
-    console.log(fullConversation)
-
-
     useEffect(()=>{
         getFullConversasionAndUsers()
     },[])
@@ -41,7 +36,10 @@ export default function ConversationActions({loggedInUser,selectedRoom,socket,up
     }
 
     const block = async()=>{
-        if(!fullConversation.usersInclude) return
+        if(!fullConversation.usersInclude)  
+            {
+            setChosenUsers([])
+            }
         setUsers(fullConversation.usersInclude.filter(user=>loggedInUser.userName!==user))
         actionType.current='block'
         if(fullConversation.blocked.length)
@@ -50,18 +48,19 @@ export default function ConversationActions({loggedInUser,selectedRoom,socket,up
     }
 
     const leave = async()=>{
-        const isConfirmed = window.confirm('Are you sure you want to leave the room?');
+        const isConfirmed = window.confirm('Are you sure you want to leave the room?')
         if (!isConfirmed) return
-        exitFromConversation(loggedInUser.userName,selectedRoom)
+        const data = await exitFromConversation(loggedInUser.userName,selectedRoom)
+        if(data)
+        {
         updateUser(true)
+        }
     }
 
     const submit = async()=>{
         if(actionType.current==='block'){
-            if(chosenUsers && chosenUsers.length){
-                blockUsers(fullConversation._id,chosenUsers)
-                socket.emit('update-blocked-users',{room:fullConversation,users:chosenUsers})
-            }
+            blockUsers(fullConversation._id,chosenUsers)
+            socket.emit('update-blocked-users',{room:fullConversation,users:chosenUsers})
         }
         else if(actionType.current==='invite'){
             if(chosenUsers && chosenUsers.length){

@@ -46,9 +46,10 @@ export const joinToConversation = (user,newConversation)=>{
     }
 }
 
-export const exitFromConversation = (user,newConversation)=>{
+export const exitFromConversation = async(user,newConversation)=>{
     try{
-        axios.post(url+`/remove-user/${newConversation._id}/${user}`)
+        const {data} = await axios.post(url+`/remove-user/${newConversation.id}/${user}`)
+        return data
     }catch(err){
         console.log('Error during creating a new conversation:', err)
     }
