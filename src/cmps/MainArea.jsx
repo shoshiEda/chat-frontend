@@ -8,7 +8,7 @@ import ConversationActions from './ConversationActions.jsx'
 import { io } from 'socket.io-client'
 
 
-export default function MainArea({loggedInUser,setLoggedInUser}){
+export default function MainArea({loggedInUser,setLoggedInUser,isComputer}){
 
 
 
@@ -19,6 +19,9 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     const [modalMsg,setModalMsg] = useState({msg:"",room:""})
     const socketRef = useRef(null)
     const [roomMsgs,setRoomMsgs] = useState([])
+    const [isComputerMainPage,setIsComputerMainPage] = useState(true)
+    const [isUpdateUser,setIsUpdateUser] = useState({update:false,room:"Main"})
+    const [isOpenMobileManu,setIsOpenMobileManu] = useState(false)
 
 
     const filteredUsers = connectedUsers
@@ -34,6 +37,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
 
     const chatEndRef = useRef(null)
     const chatEndRef2 = useRef(null)
+    const chatEndRef3 = useRef(null)
     const isFirstRender = useRef(true)
     const selectedRoomRef = useRef(selectedRoom)
 
@@ -42,14 +46,28 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
       selectedRoomRef.current = selectedRoom;
     }, [selectedRoom])
 
+    useEffect(()=>{
+      async function update(){
+        const updatedUser = await updateUser()
+        await loadConversation(isUpdateUser.room,updatedUser)
+      }
+      if(isUpdateUser.update)     
+          update()
+    },[isUpdateUser])
+
 
     
 
     useEffect(() => {
-        if(!chatEndRef.current ||!chatEndRef2.current) return
+        if(chatEndRef.current) 
         chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        if(chatEndRef2.current)
         chatEndRef2.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
-    }, [roomMsgs])
+        if(chatEndRef3.current)
+        chatEndRef3.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+
+    }, [roomMsgs,isComputerMainPage])
+
     
 
     useEffect(()=>{
@@ -74,7 +92,10 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
           isFirstRender.current=false
           joinRooms()
         }
+        if(!socketRef.current) return
+
         socketRef.current.on('update-users', (users) => {
+          console.log(users)
             setConnectedUsers(users)
         })
 
@@ -89,7 +110,8 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
             {
               if (selectedRoom.blocked.includes(loggedInUser.userName)) return
             }else{
-              const conversation = await getConversationById(data.room._id) 
+              const conversation = await getConversationById(data.conversationId
+              ) 
               if(conversation.blocked)
                 {
                   if (conversation.blocked.includes(loggedInUser.userName)) return
@@ -116,10 +138,9 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         })
 
         socketRef.current.on('new-room-notification',(data)=>{
-          console.log(data)
           setIsOpenMsg(true)
           setModalMsg({
-            msg: `${data.room.creator} has added you to room ${data.room.name} - click to go to the room`,
+            msg: `${data.room.username} has added you to room ${data.room.name} - click to go to the room`,
             room: data.room.name,
           });
           setTimeout(() => setIsOpenMsg(false), 5000)
@@ -145,24 +166,18 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
         return
       }
       const data = await createNewConversation({type:'private',name:`${loggedInUser.userName} - ${user}`,username:`${loggedInUser.userName}`},[user])
-      console.log(data)
       socketRef.current.emit('create-new-room',{room:{type:'private',name:`${loggedInUser.userName} - ${user}`,username:`${loggedInUser.userName}`},users:[user]})
       if(data){
-        updateUser(true) 
+        setIsUpdateUser({update:true,room:`${loggedInUser.userName} - ${user}`,username:`${loggedInUser.userName}`}) 
       }
     }
 
 
 
-    async function updateUser(isLoadLastRoom=false){
-            const currentRoom = selectedRoomRef.current
+    async function updateUser(){
             const user = await getLoggedInUser( loggedInUser.userId )
             setLoggedInUser(user)
             sessionStorage.setItem('loggedInUser', JSON.stringify(user))
-            isLoadLastRoom? 
-              loadConversation(user.conversations[user.conversations.length-1].name) 
-               : 
-               loadConversation(currentRoom.name)
         }
     
     async function send(){
@@ -208,11 +223,12 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
       })
     }
 
-    async function loadConversation(conversationName) {
+    async function loadConversation(conversationName,user) {
         if (!socketRef.current) {
             return;
           }
         try{
+        const loggedInUser = user || JSON.parse(sessionStorage.getItem('loggedInUser'))
         const selectedConversation = loggedInUser.conversations.find(con=>con.name===conversationName)
         const conversation = selectedConversation._id? selectedConversation : await getConversationById(selectedConversation.id) 
         if(conversation)
@@ -252,9 +268,11 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
     }
 
 
+
     {!loggedInUser && <div>Loading...</div>}
     return(
-        <section className="chat-page">
+      <section>
+        {isComputer && <section className="chat-page">
             <div className="header">
                 <h1 className='logo'>my-chat</h1>
                 <h3>hello {loggedInUser.userName}</h3>
@@ -290,7 +308,7 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                         </div>
                     </div>
             </div>
-            {selectedRoom.type==='private' && <ConversationActions loggedInUser={loggedInUser} selectedRoom={selectedRoom} socket={socketRef.current} updateUser={updateUser}/>}
+            {selectedRoom.type==='private' && <ConversationActions loggedInUser={loggedInUser} selectedRoom={selectedRoom} socket={socketRef.current} setIsUpdateUser={setIsUpdateUser}/>}
 
             <div className='sending-msg-area'>
                 to:<span className='to'>{ selectedRoom.name}</span>
@@ -307,7 +325,8 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
 
                 <button onClick={send}>send</button>
             </div>
-            {isOpenModal && <NewRoom setIsOpenModal={setIsOpenModal} loggedInUser={loggedInUser} updateUser={updateUser} socket={socketRef.current}/>}
+        </section>}
+        {isOpenModal && <NewRoom setIsOpenModal={setIsOpenModal} loggedInUser={loggedInUser} setIsUpdateUser={setIsUpdateUser} socket={socketRef.current}/>}
             {isOpenMsg && <div className='modal-msg' onClick={()=>loadConversation(modalMsg.room)}>
                 <button onClick={(e)=>{
                     e.stopPropagation()
@@ -315,6 +334,59 @@ export default function MainArea({loggedInUser,setLoggedInUser}){
                 }}>X</button>
                 <h3>{modalMsg.msg}</h3>
             </div>}
-        </section>
+        {!isComputer && isComputerMainPage?
+          <section>
+              <div className="mobile-header">
+                  <h1 className='logo'>my-chat</h1>
+                  <h3>hello {loggedInUser.userName}</h3>
+                  <i className="fa-solid fa-ellipsis-vertical" onClick={()=>setIsOpenMobileManu(!isOpenMobileManu)}></i>
+                  {isOpenMobileManu && <div className='mobile-modal'>
+                      <li onClick={()=>setIsOpenModal(true)}>create a new room</li>
+                      <li onClick={()=>logingOut(loggedInUser.userId)}>log out</li>
+                  </div>}
+              </div>
+              <div className='rooms-area-mobile'>
+                          {loggedInUser.conversations && loggedInUser.conversations.map(conversation=><li key={conversation.id} 
+                          onClick={()=>{
+                            loadConversation(conversation.name)
+                            setIsComputerMainPage(false)
+                          }}
+                          >{conversation.name}</li>)}
+              </div>        
+          </section> 
+        : 
+        <section>
+        <header className='mobile-chat-header'>
+            <i onClick={()=>setIsComputerMainPage(true)} className="fa-solid fa-arrow-left"></i>
+            <h1>{selectedRoom.name? selectedRoom.name : ""}</h1>
+        </header>
+        <div className='msg-area msg-area-mobile'>
+                    <ul>
+                {roomMsgs.length>0 && roomMsgs.map((msg,idx)=>
+                    <li key={idx}
+                    className={(msg.username===loggedInUser.userName)?'me':'others'}
+                    ><p style={{color:(msg.username===loggedInUser.userName)?'Green':'Purple'}}>{(msg.username===loggedInUser.userName)? 'you' :msg.username}:</p><p>{msg.msg}</p></li>
+                )}
+                    <div ref={chatEndRef3}></div>
+                    </ul>
+                </div>
+                {selectedRoom.type==='private' && <ConversationActions loggedInUser={loggedInUser} selectedRoom={selectedRoom} socket={socketRef.current} setIsUpdateUser={setIsUpdateUser} setIsComputerMainPage={setIsComputerMainPage}/>}
+
+                <div className='sending-msg-area'>
+                    <input 
+                    type="text" 
+                    onChange={(e) => setMsg(e.target.value)} 
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                        e.preventDefault()  
+                        send()}}}
+                    value={msg}
+                    />
+
+                    <button onClick={send}>send</button>
+                </div>
+    </section>
+        }
+    </section>
     )
 }

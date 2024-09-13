@@ -6,7 +6,7 @@ import { getConnectedUsers } from '../services/user.service'
 
 
 
-export default function ConversationActions({loggedInUser,selectedRoom,socket,updateUser}){
+export default function ConversationActions({loggedInUser,selectedRoom,socket,setIsUpdateUser,setIsComputerMainPage=null}){
 
     const [fullConversation,setFullConversation] = useState(null)
     const [users,setUsers] = useState([])
@@ -51,9 +51,11 @@ export default function ConversationActions({loggedInUser,selectedRoom,socket,up
         const isConfirmed = window.confirm('Are you sure you want to leave the room?')
         if (!isConfirmed) return
         const data = await exitFromConversation(loggedInUser.userName,selectedRoom)
+        console.log(data)
         if(data)
         {
-        updateUser(true)
+            setIsUpdateUser({update:true,room:"Main"})
+            if(setIsComputerMainPage)  setIsComputerMainPage(true)
         }
     }
 
@@ -99,8 +101,14 @@ export default function ConversationActions({loggedInUser,selectedRoom,socket,up
                     <button onClick={submit}>submit</button>
                     </div> 
                 </div>}
+            {isOpenModal && users && !users.length && <div>
+                <div className='bg-modal' onClick={()=>setIsOpenModal(false)}></div>
+                <div className='new-room-modal'>
+                    <h5>you have no users to choose from</h5>
+                    </div> 
+                </div>}  
             {fullConversation && fullConversation.creator===loggedInUser.userName && <button className="invite-btn" onClick={invite}>invite</button>}
             {fullConversation && fullConversation.creator===loggedInUser.userName && <button className="delete-btn" onClick={block}>block</button>}
-            <button className="delete-btn" onClick={leave}>leave room</button>
+            {fullConversation && fullConversation.creator!==loggedInUser.userName &&<button className="delete-btn" onClick={leave}>leave room</button>}
         </section>)
 }

@@ -176,6 +176,8 @@ font-size: 1.3rem;
     align-items: center;
     background-color:var(--ClrBtn);
     color:var(--ClrLoginInside);
+    font-family: 'Edu VIC WA NT Beginner', cursive;
+
 }
 
 .mobile-header i{
@@ -204,3 +206,19 @@ font-size: 1.3rem;
     overflow-y: auto;
 }
 
+.mobile-chat-header{
+    display: flex;
+    align-items: center;
+    background-color:var(--ClrBtn);
+    color:var(--ClrLoginInside);
+    font-family: 'Edu VIC WA NT Beginner', cursive;
+}
+
+.mobile-chat-header i{
+    margin-inline: 1rem;
+}
+
+.msg-area-mobile{
+    height: 35rem;
+    width: 85%;
+}

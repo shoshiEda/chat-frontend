@@ -2,7 +2,6 @@ import { useState , useEffect} from 'react'
 
 import  MainArea  from './cmps/MainArea'
 import  LoginPage  from './cmps/LoginPage'
-import MobileMainArea from './cmps/MobileMainArea'
 import './assets/main.css'
 
 function App() {
@@ -24,11 +23,7 @@ useEffect(()=>checkDevice(),[])
   return(
     <>
     {loggedInUser?(
-        isComputer ? (
-          <MainArea loggedInUser={loggedInUser} setLoggedInUser={setLoggedInUser} />
-        ) : (
-          <MobileMainArea loggedInUser={loggedInUser} setLoggedInUser={setLoggedInUser} />
-        ) 
+        <MainArea loggedInUser={loggedInUser} setLoggedInUser={setLoggedInUser} isComputer={isComputer}/>
       ) : (
         <LoginPage setLoggedInUser={setLoggedInUser} />
       )}
